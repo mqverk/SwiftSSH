@@ -1,54 +1,94 @@
+<!-- prettier-ignore -->
 # SwiftSSH
 
-SwiftSSH is a modular, educational SSH-2 implementation written in Rust. It provides a lightweight, readable reference implementation of core SSH concepts: the transport layer (version exchange, key exchange, encryption/MAC), user authentication, multiplexed channels for remote command execution, and an SFTP subsystem.
+![SwiftSSH](https://raw.githubusercontent.com/mqverk/SwiftSSH/main/assets/swiftssh-banner.png)
 
-This project is intended for learning, experimentation, and extension — not for production use.
+> SwiftSSH is an educational SSH-2 implementation in Rust — a compact, readable reference
+> that demonstrates transport, authentication, channel multiplexing, and an SFTP subsystem.
+>
+> ⚠️ Not for production use. Audit crypto/host-key handling before exposing to untrusted networks.
 
 ---
 
-## Key Goals
+## Table of contents
 
-- Education: clear module separation and RFC-aligned code paths.
-- Completeness: client and server binaries, SFTP support, and unit tests.
-- Modern crypto: Curve25519 key exchange, AES-256-CTR, HMAC-SHA256.
-- Async-first: built on Tokio for non-blocking networking.
+1. [Quick demo](#quick-demo)
+2. [Architecture](#architecture)
+3. [Features](#features)
+4. [Getting started](#getting-started)
+5. [SFTP examples](#sftp-examples)
+6. [Testing & CI](#testing--ci)
+7. [Development notes](#development-notes)
+8. [Contributing](#contributing)
+9. [License](#license)
+
+---
+
+## Quick demo
+
+Start the server (defaults to `0.0.0.0:2222`):
+
+```bash
+cargo run --bin swiftssh-server --release
+```
+
+Execute a command on the server:
+
+```bash
+cargo run --bin swiftssh-client -- --user admin --password admin --command "whoami"
+```
+
+Start an interactive shell session:
+
+```bash
+cargo run --bin swiftssh-client -- --user admin --password admin --interactive
+```
+
+---
+
+## Architecture
+
+A high-level view of the main components:
+
+```mermaid
+flowchart LR
+  CLI[Client CLI/TUI] -->|TCP| Transport
+  Transport --> Crypto
+  Transport --> Connection
+  Connection --> SFTP
+  Transport --> Auth
+  Crypto -->|encrypts/mac| Transport
+  Auth -->|auth decisions| Connection
+```
+
+Key folders:
+
+- `src/packet` — packet codec & wire helpers
+- `src/transport` — version exchange, key exchange, packet I/O
+- `src/crypto` — AES-CTR, HMAC, key derivation helpers
+- `src/auth` — auth parsing + server `UserDatabase`
+- `src/connection` — channel management and builders/parsers
+- `src/sftp` — SFTP v3 subset and server handler
 
 ---
 
 ## Features
 
-- Fully async transport layer with version and key exchange (RFC 4253).
-- Curve25519 (X25519) ephemeral key exchange and SHA-256 exchange hash.
-- AES-256-CTR encryption and HMAC-SHA256 integrity for packet traffic.
-- Password and public-key authentication (RFC 4252) with a simple server-side user database.
-- Multiplexed SSH channels (RFC 4254): exec, shell, pty-req, subsystem (SFTP) support.
-- SFTP subsystem (subset) with open/read/write/readdir/stat/mkdir/rmdir/remove and chroot-style path protection.
-- Clear packet codec and wire-type helpers for learning packet formats.
-- Unit tests for packet handling, crypto helpers, kex, auth parsing, channels, and SFTP.
+- ✅ Async-first design using Tokio
+- ✅ X25519 (Curve25519) ephemeral key exchange
+- ✅ AES-256-CTR encryption + HMAC-SHA256 integrity
+- ✅ Password and public-key authentication (server-side `UserDatabase`)
+- ✅ Multiplexed channels: `exec`, `shell`, `pty-req`, `subsystem` (SFTP)
+- ✅ SFTP subset: open / read / write / readdir / stat / mkdir / rmdir / remove
+- ✅ Unit tests for protocol and crypto primitives
 
 ---
 
-## Project layout
-
-See `src/` for the full code. High-level modules:
-
-- `packet/` — packet codec (serialize/deserialize) and wire helpers (`SshBuf`).
-- `transport/` — version exchange, KEX, async packet I/O.
-- `crypto/` — AES CTR, HMAC, RFC-style key derivation helpers.
-- `auth/` — parsing/auth helpers and a simple `UserDatabase` for the server.
-- `connection/` — channel management, windowing, channel packet builders/parsers.
-- `sftp/` — SFTP packet helpers and a server-side handler for file ops.
-- `session/` — per-connection key and sequence-state storage.
-- `error/` — shared `SshError` and `SshResult` types.
-- `src/bin/` — two binaries: `swiftssh-server` and `swiftssh-client`.
-
----
-
-## Quickstart
+## Getting started
 
 Prerequisites
 
-- Rust toolchain (stable) and `cargo`.
+- Rust (stable) and `cargo`
 
 Build
 
@@ -56,86 +96,81 @@ Build
 cargo build --release
 ```
 
-Run the server (defaults)
+Run server
 
 ```bash
-# Default: listen on 0.0.0.0:2222
+# default: listen on 0.0.0.0:2222 and create SFTP root
 cargo run --bin swiftssh-server --release
 ```
 
-Default server notes
-
-- Default SFTP root: `/tmp/swiftssh` (server will create it if missing).
-- Default users (for the example server): `admin`/`admin` and `user`/`password`.
-
-Run the client (example)
+Run client
 
 ```bash
-# Execute a remote command
-cargo run --bin swiftssh-client -- --user admin --password admin --command "whoami"
-
-# Interactive shell mode
-cargo run --bin swiftssh-client -- --user admin --password admin --interactive
+cargo run --bin swiftssh-client -- --user admin --password admin --command "ls -la"
 ```
 
+Notes
+
+- Default SFTP root: `/tmp/swiftssh` (server will create it if missing)
+- Default example users: `admin`/`admin`, `user`/`password`
+
 ---
 
-## SFTP
+## SFTP examples
 
-The SFTP subsystem runs over an SSH channel using a simplified v3 implementation. Basic operations supported include `open`, `read`, `write`, `readdir`, `stat`, `mkdir`, `rmdir`, and `remove`. The server enforces a path restriction rooted at the configured SFTP root to avoid traversal outside the allowed tree.
+SFTP runs as a `subsystem` over a channel. That channel carries length-prefixed SFTP packets.
+
+Example: list a directory using the system `sftp` client after negotiating the subsystem.
+
+```text
+# (after successful session & subsystem negotiation)
+# Use the built-in SFTP; paths are rooted at server SFTP root.
+sftp> ls
+sftp> get README.md
+```
+
+The SwiftSSH SFTP handler enforces path normalization and prevents traversal outside the configured root.
 
 ---
 
-## Testing
+## Testing & CI
 
-Run unit tests:
+Run tests locally:
 
 ```bash
 cargo test
 ```
 
-The repository includes tests for packet serialization round-trips, kex, crypto helpers, auth parsing, channel lifecycle, and SFTP behaviors.
+Suggested CI checks for PRs:
 
----
-
-## Security & Limitations
-
-This code is educational and deliberately simplified in places:
-
-- Host key handling and signature verification are simplified placeholders — do _not_ rely on them for production-level host authenticity.
-- There is no built-in key storage, agent integration, or secure secrets management.
-- Performance and hardened edge-cases are not fully implemented.
-
-Do not expose this server to untrusted networks without auditing and upgrading cryptographic checks and host-key handling.
+- `cargo test`
+- `cargo fmt -- --check`
+- `cargo clippy -- -D warnings`
 
 ---
 
 ## Development notes
 
-- Format: `cargo fmt` (if formatting is desired, add `rustfmt`).
-- Linting: `cargo clippy`.
-- Tests: `cargo test`.
+- Format: `cargo fmt`
+- Lint: `cargo clippy`
+- Tests: `cargo test`
 
-If you plan to extend the project, focus on isolating cryptographic primitives from protocol logic and add thorough tests for any new code paths.
+Design tips
+
+- Keep cryptographic code confined to `src/crypto` to simplify audits and replacements.
+- Add unit tests for packet round-trips when changing wire formats.
 
 ---
 
 ## Contributing
 
-Contributions are welcome. Open an issue to discuss design changes, then submit a PR with tests and a clear commit message.
+1. Open an issue describing your change.
+2. Branch, implement tests, and open a PR.
+
+Please avoid changing crypto defaults without discussion.
 
 ---
 
 ## License
 
 MIT
-
----
-
-If you want, I can also:
-
-- Add a short `docs/` folder with RFC references and diagrams.
-- Create CI workflows (GitHub Actions) to run `cargo test` and `cargo fmt` on push/PR.
-- Add a minimal `examples/` directory with automated server/client run scripts.
-
-Tell me which of the above you'd like next.
