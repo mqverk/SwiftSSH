@@ -1,0 +1,53 @@
+[package]
+name = "swiftssh"
+version = "0.1.0"
+edition = "2024"
+description = "SwiftSSH – A modular, educational SSH-2 implementation in Rust"
+license = "MIT"
+
+[[bin]]
+name = "swiftssh-server"
+path = "src/bin/server.rs"
+
+[[bin]]
+name = "swiftssh-client"
+path = "src/bin/client.rs"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Cryptography (RustCrypto ecosystem)
+aes = "0.8"
+ctr = "0.9"
+hmac = "0.12"
+sha2 = "0.10"
+rsa = { version = "0.9", features = ["sha2"] }
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+rand = "0.8"
+signature = "2"
+
+# Serialization helpers
+byteorder = "1"
+bytes = "1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+crossterm = "0.28"
+
+# Error handling
+thiserror = "1"
+anyhow = "1"
+
+# Misc
+base64 = "0.22"
+num-bigint = "0.4"
+zeroize = "1"
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3"
