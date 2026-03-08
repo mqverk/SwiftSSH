@@ -1,12 +1,10 @@
 <!-- prettier-ignore -->
 # SwiftSSH
 
-![SwiftSSH](https://raw.githubusercontent.com/mqverk/SwiftSSH/main/assets/swiftssh-banner.png)
-
 > SwiftSSH is an educational SSH-2 implementation in Rust — a compact, readable reference
 > that demonstrates transport, authentication, channel multiplexing, and an SFTP subsystem.
 >
-> ⚠️ Not for production use. Audit crypto/host-key handling before exposing to untrusted networks.
+> Not for production use. Audit crypto/host-key handling before exposing to untrusted networks.
 
 ---
 
@@ -74,13 +72,13 @@ Key folders:
 
 ## Features
 
-- ✅ Async-first design using Tokio
-- ✅ X25519 (Curve25519) ephemeral key exchange
-- ✅ AES-256-CTR encryption + HMAC-SHA256 integrity
-- ✅ Password and public-key authentication (server-side `UserDatabase`)
-- ✅ Multiplexed channels: `exec`, `shell`, `pty-req`, `subsystem` (SFTP)
-- ✅ SFTP subset: open / read / write / readdir / stat / mkdir / rmdir / remove
-- ✅ Unit tests for protocol and crypto primitives
+- Async-first design using Tokio
+- X25519 (Curve25519) ephemeral key exchange
+- AES-256-CTR encryption + HMAC-SHA256 integrity
+- Password and public-key authentication (server-side `UserDatabase`)
+- Multiplexed channels: `exec`, `shell`, `pty-req`, `subsystem` (SFTP)
+- SFTP subset: open / read / write / readdir / stat / mkdir / rmdir / remove
+- Unit tests for protocol and crypto primitives
 
 ---
 
